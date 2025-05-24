@@ -1,11 +1,11 @@
 export class Snake {
   constructor(initialPosition) {
-    // Initialize with multiple segments
+    // 設置蛇的初始Y軸高度為0.5
     this.body = [
-      initialPosition,
-      [initialPosition[0] - 1, initialPosition[1], initialPosition[2]],
-      [initialPosition[0] - 2, initialPosition[1], initialPosition[2]],
-      [initialPosition[0] - 3, initialPosition[1], initialPosition[2]]
+      [initialPosition[0], 0.5, initialPosition[2]],
+      [initialPosition[0] - 1, 0.5, initialPosition[2]],
+      [initialPosition[0] - 2, 0.5, initialPosition[2]],
+      [initialPosition[0] - 3, 0.5, initialPosition[2]]
     ];
     this.direction = [1, 0, 0];
     this.growPending = 0;
@@ -23,7 +23,7 @@ export class Snake {
     const head = this.body[0];
     const newHead = [
       head[0] + this.direction[0] * this.speed,
-      head[1] + this.direction[1] * this.speed,
+      0.5,  // 固定Y軸高度為0.5
       head[2] + this.direction[2] * this.speed,
     ];
     

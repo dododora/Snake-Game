@@ -311,11 +311,11 @@ function handleMouseMove(event) {
 }
 
 function spawnFood() {
-  // Spawn food in a random position within game boundaries
+  const maxRange = 9;
   foodPosition = [
-    Math.floor(Math.random() * 16 - 8), // -8 to 8
-    0.5, // Slightly above ground
-    Math.floor(Math.random() * 16 - 8)  // -8 to 8
+    Math.floor(Math.random() * (maxRange * 2) - maxRange),
+    0.5,  // 修改為和蛇一樣的高度
+    Math.floor(Math.random() * (maxRange * 2) - maxRange)
   ];
   console.log('New food spawned at:', foodPosition);
 }
@@ -355,8 +355,14 @@ function update() {
   }
 }
 
+// 修改碰撞檢測函數
 function isOutOfBounds(position) {
-  return Math.abs(position[0]) > 10 || Math.abs(position[2]) > 10;
+  // 在判定時考慮蛇身體的大小（假設蛇身體是 1x1 的立方體）
+  const halfSize = 0.5; // 蛇身體的半寬
+  const borderSize = 10; // 邊界大小
+  
+  return (Math.abs(position[0]) + halfSize > borderSize) || 
+         (Math.abs(position[2]) + halfSize > borderSize);
 }
 
 function gameOver() {
@@ -523,6 +529,32 @@ function drawScene(viewMatrix, aspect) {
   gl.uniformMatrix4fv(program.u_NormalMatrix, false, foodNormalMatrix.elements);
 
   drawFood(gl, program, vpMatrix);
+
+  // 繪製邊界線
+  const borderSize = 10;
+  const borderHeight = 1.0;  // 修改邊界高度與蛇同高
+  const borderWidth = 0.5;
+  
+  // 北邊
+  let borderModel = new Matrix4();
+  borderModel.setTranslate(0, 0.5, -borderSize);  // Y軸設為 0.5，使底部與地面齊平
+  borderModel.scale(borderSize * 2, borderHeight, borderWidth);
+  drawBorder(borderModel, vpMatrix);
+
+  // 南邊
+  borderModel.setTranslate(0, 0.5, borderSize);
+  borderModel.scale(borderSize * 2, borderHeight, borderWidth);
+  drawBorder(borderModel, vpMatrix);
+
+  // 東邊
+  borderModel.setTranslate(borderSize, 0.5, 0);
+  borderModel.scale(borderWidth, borderHeight, borderSize * 2);
+  drawBorder(borderModel, vpMatrix);
+
+  // 西邊
+  borderModel.setTranslate(-borderSize, 0.5, 0);
+  borderModel.scale(borderWidth, borderHeight, borderSize * 2);
+  drawBorder(borderModel, vpMatrix);
 }
 
 function drawSkybox(viewMatrix, aspect) {
@@ -595,6 +627,21 @@ function drawFood(gl, program, vpMatrix) {
   // 重置狀態
   gl.uniform1i(program.u_UseTexture, 0);
   gl.disableVertexAttribArray(program.a_TexCoord);
+}
+
+function drawBorder(modelMatrix, vpMatrix) {
+  const normalMatrix = new Matrix4();
+  normalMatrix.setInverseOf(modelMatrix);
+  normalMatrix.transpose();
+
+  const mvpMatrix = new Matrix4(vpMatrix).multiply(modelMatrix);
+  
+  gl.uniformMatrix4fv(program.u_MvpMatrix, false, mvpMatrix.elements);
+  gl.uniformMatrix4fv(program.u_ModelMatrix, false, modelMatrix.elements);
+  gl.uniformMatrix4fv(program.u_NormalMatrix, false, normalMatrix.elements);
+  
+  // 使用白色繪製邊界
+  drawCubeAt(gl, program, [0, 0, 0], [0.8, 0.8, 0.8]);
 }
 
 main();
