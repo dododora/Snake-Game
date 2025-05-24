@@ -203,15 +203,22 @@ function setupSkybox() {
   
   faces.forEach((face, i) => {
     const image = new Image();
+    image.crossOrigin = 'anonymous';  // 確保可以加載跨域圖片
     image.onload = () => {
+      console.log(`Loaded skybox texture: ${face}`);
       images[i] = image;
       loadedImages++;
       if (loadedImages === 6) {
         skyboxTexture = loadCubemapTexture(gl, images);
-        requestAnimationFrame(gameLoop);
+        if (!skyboxTexture) {
+          console.error('Failed to create skybox texture');
+        }
       }
     };
-    image.src = `./picture/${face}.jpg`; // Make sure these images exist
+    image.onerror = (err) => {
+      console.error(`Failed to load skybox texture ${face}:`, err);
+    };
+    image.src = `./picture/${face}.jpg`;
   });
 }
 
@@ -408,9 +415,9 @@ function draw() {
 }
 
 function drawScene(viewMatrix, aspect) {
-  // 先畫 skybox
-  // drawSkybox(viewMatrix, aspect);
-
+  // 先畫 skybox，去掉註釋
+  drawSkybox(viewMatrix, aspect);
+  
   // 切換回主 shader program
   gl.useProgram(program);
 
@@ -428,11 +435,11 @@ function drawScene(viewMatrix, aspect) {
   gl.uniform3f(program.u_LightPosition, 5.0, 10.0, 5.0);
 
   // 畫地板
-  const groundModelMatrix = new Matrix4();
-  const groundMvpMatrix = new Matrix4(vpMatrix).multiply(groundModelMatrix);
-  gl.uniformMatrix4fv(program.u_MvpMatrix, false, groundMvpMatrix.elements);
-  gl.uniformMatrix4fv(program.u_ModelMatrix, false, groundModelMatrix.elements);
-  drawGround(gl, program, [0.3, 0.3, 0.3]);
+  // const groundModelMatrix = new Matrix4();
+  // const groundMvpMatrix = new Matrix4(vpMatrix).multiply(groundModelMatrix);
+  // gl.uniformMatrix4fv(program.u_MvpMatrix, false, groundMvpMatrix.elements);
+  // gl.uniformMatrix4fv(program.u_ModelMatrix, false, groundModelMatrix.elements);
+  // drawGround(gl, program, [0.3, 0.3, 0.3]);
 
   // 畫蛇的每一節
   snake.body.forEach((segment, index) => {
@@ -453,32 +460,46 @@ function drawScene(viewMatrix, aspect) {
 }
 
 function drawSkybox(viewMatrix, aspect) {
-  if (!skyboxBuffer || !skyboxBuffer.vertexBuffer) return;
-  gl.depthFunc(gl.LEQUAL);
+  if (!skyboxBuffer || !skyboxBuffer.vertexBuffer || !skyboxTexture) {
+    console.log('Skybox resources not ready:', {
+      buffer: skyboxBuffer,
+      texture: skyboxTexture
+    });
+    return;
+  }
+
+  gl.depthFunc(gl.LEQUAL);  // 更改深度測試函數
   gl.useProgram(skyboxProgram);
 
-  // 只保留旋轉，去除平移
+  // 創建一個新的視圖矩陣，只保留旋轉部分
   const viewNoTrans = new Matrix4(viewMatrix);
   viewNoTrans.elements[12] = 0;
   viewNoTrans.elements[13] = 0;
   viewNoTrans.elements[14] = 0;
 
-  // 投影矩陣
-  const projectionMatrix = new Matrix4().setPerspective(45, aspect, 0.1, 100);
+  // 設置投影矩陣
+  const projectionMatrix = new Matrix4().setPerspective(60, aspect, 0.1, 100);
 
+  // 設置著色器變量
   gl.uniformMatrix4fv(skyboxProgram.u_ViewMatrix, false, viewNoTrans.elements);
   gl.uniformMatrix4fv(skyboxProgram.u_ProjectionMatrix, false, projectionMatrix.elements);
 
-  gl.bindBuffer(gl.ARRAY_BUFFER, skyboxBuffer.vertexBuffer);
-  gl.vertexAttribPointer(skyboxProgram.a_Position, 3, gl.FLOAT, false, 0, 0);
-  gl.enableVertexAttribArray(skyboxProgram.a_Position);
-
+  // 綁定 skybox 紋理
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_CUBE_MAP, skyboxTexture);
   gl.uniform1i(skyboxProgram.u_SkyboxTexture, 0);
 
+  // 設置頂點數據
+  gl.bindBuffer(gl.ARRAY_BUFFER, skyboxBuffer.vertexBuffer);
+  gl.vertexAttribPointer(skyboxProgram.a_Position, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(skyboxProgram.a_Position);
+
+  // 繪製 skybox
   gl.drawArrays(gl.TRIANGLES, 0, skyboxBuffer.numVertices);
+
+  // 重置狀態
   gl.depthFunc(gl.LESS);
+  gl.useProgram(program);
 }
 
 function drawFood(gl, program, vpMatrix) {

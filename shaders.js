@@ -58,11 +58,9 @@ export const skyboxVertexShader = `
   uniform mat4 u_ProjectionMatrix;
   varying vec3 v_TexCoord;
   void main() {
-    v_TexCoord = a_Position;
-    // 只用旋轉過的 view matrix
     vec4 pos = u_ProjectionMatrix * u_ViewMatrix * vec4(a_Position, 1.0);
-    gl_Position = pos;
-    // 不要 xyww，保留原本的 w
+    gl_Position = pos.xyww;  // 修改這裡，確保 skybox 永遠在最遠處
+    v_TexCoord = a_Position;  // 使用頂點位置作為紋理坐標
   }
 `;
 
@@ -71,6 +69,7 @@ export const skyboxFragmentShader = `
   uniform samplerCube u_SkyboxTexture;
   varying vec3 v_TexCoord;
   void main() {
-    gl_FragColor = textureCube(u_SkyboxTexture, v_TexCoord);
+    vec3 texColor = textureCube(u_SkyboxTexture, v_TexCoord).rgb;
+    gl_FragColor = vec4(texColor, 1.0);
   }
 `;
