@@ -571,7 +571,7 @@ function drawSkybox(viewMatrix, aspect) {
 function drawFood(gl, program, vpMatrix) {
   const foodModelMatrix = new Matrix4();
   foodModelMatrix.setTranslate(...foodPosition);
-  // foodModelMatrix.rotate(foodRotation, 0, 1, 0);
+  foodModelMatrix.rotate(foodRotation, foodRotation, 1, 0);
   foodModelMatrix.scale(0.3, 0.3, 0.3);
 
   const foodMvpMatrix = new Matrix4(vpMatrix).multiply(foodModelMatrix);

@@ -24,7 +24,7 @@ export class Camera {
 
   getThirdPersonView(position) {
     const distance = 5;  // 減少距離，原本是 15 太遠了
-    const height = 3;    // 降低高度，原本是 10 太高了
+    const height = 2;    // 降低高度，原本是 10 太高了
 
     const eye = [
       position[0] + distance * Math.sin(this.rotationX), // 修正符號，移除負號
