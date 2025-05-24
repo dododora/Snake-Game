@@ -21,52 +21,43 @@ export const fragmentShaderSource = `
   precision mediump float;
   uniform vec3 u_LightPosition;
   uniform vec3 u_LightColor;
-  uniform vec3 u_LightParams;
   uniform vec3 u_ViewPosition;
   uniform vec3 u_AmbientLight;
   uniform float u_Shininess;
   uniform vec3 u_Color;
   uniform sampler2D u_Sampler;
   uniform int u_UseTexture;
-  
+  uniform int u_IsShadow;
   varying vec3 v_Normal;
   varying vec3 v_Position;
   varying vec2 v_TexCoord;
 
   void main() {
-    vec3 baseColor = u_UseTexture == 1 ? texture2D(u_Sampler, v_TexCoord).rgb : u_Color;
-    
-    // Calculate lighting
+    if (u_IsShadow == 1) {
+      gl_FragColor = vec4(0.0, 0.0, 0.0, 0.5);
+      return;
+    }
+
+    vec3 baseColor;
+    if (u_UseTexture == 1) {
+      baseColor = texture2D(u_Sampler, v_TexCoord).rgb;
+    } else {
+      baseColor = u_Color;
+    }
+
     vec3 normal = normalize(v_Normal);
     vec3 lightDir = normalize(u_LightPosition - v_Position);
-    vec3 viewDir = normalize(u_ViewPosition - v_Position);  // 使用當前視角位置
-    
-    // 反射向量
-    vec3 reflectDir = reflect(-lightDir, normal);
-    
-    // 半向量（Blinn-Phong）
+    vec3 viewDir = normalize(u_ViewPosition - v_Position);
     vec3 halfwayDir = normalize(lightDir + viewDir);
-    
-    // Calculate distance and attenuation
-    float distance = length(u_LightPosition - v_Position);
-    float attenuation = 1.0 / (u_LightParams.x + 
-                              u_LightParams.y * distance + 
-                              u_LightParams.z * distance * distance);
-    
-    // Ambient
+
     vec3 ambient = u_AmbientLight * baseColor;
-    
-    // Diffuse
     float diff = max(dot(normal, lightDir), 0.0);
     vec3 diffuse = diff * u_LightColor * baseColor;
     
-    // Specular (使用 Blinn-Phong)
     float spec = pow(max(dot(normal, halfwayDir), 0.0), u_Shininess);
     vec3 specular = spec * u_LightColor;
-    
-    // Combine all components with attenuation
-    vec3 result = ambient + attenuation * (diffuse + specular);
-    
+
+    vec3 result = ambient + diffuse + specular;
     gl_FragColor = vec4(result, 1.0);
   }
 `;

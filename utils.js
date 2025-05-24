@@ -188,8 +188,12 @@ export function drawCubeAt(gl, program, position, color) {
   gl.enableVertexAttribArray(program.a_Position);
 
   // 設置紋理坐標
-  gl.vertexAttribPointer(program.a_TexCoord, 2, gl.FLOAT, false, 20, 12); // offset 改為 12，跳過 xyz 三個浮點數
-  gl.enableVertexAttribArray(program.a_TexCoord);
+  const a_TexCoord = gl.getAttribLocation(program, 'a_TexCoord');
+  if (a_TexCoord >= 0) { // 只有當紋理坐標屬性存在時才設置
+    gl.bindBuffer(gl.ARRAY_BUFFER, cubeBuffer.texCoordBuffer);
+    gl.vertexAttribPointer(a_TexCoord, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(a_TexCoord);
+  }
 
   // 設置頂點法線
   const normalBuffer = gl.createBuffer();

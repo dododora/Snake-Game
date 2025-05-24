@@ -156,6 +156,7 @@ function setupShaders() {
   program.u_Sampler = gl.getUniformLocation(program, 'u_Sampler');
   program.u_UseTexture = gl.getUniformLocation(program, 'u_UseTexture');
   program.a_TexCoord = gl.getAttribLocation(program, 'a_TexCoord');
+  program.u_IsShadow = gl.getUniformLocation(program, 'u_IsShadow'); // Add this
 
   // Add new uniforms for lighting
   program.u_LightColor = gl.getUniformLocation(program, 'u_LightColor');
@@ -495,6 +496,32 @@ function drawScene(viewMatrix, aspect) {
   gl.uniformMatrix4fv(program.u_ModelMatrix, false, lightModelMatrix.elements);
   drawCubeAt(gl, program, [0, 0, 0], [1.0, 1.0, 0.0]);  // 黃色立方體表示光源
 
+  // 繪製蛇的陰影
+  snake.body.forEach((segment) => {
+    const shadowModelMatrix = new Matrix4();
+    shadowModelMatrix.setTranslate(segment[0], 0.01, segment[2]); // 陰影貼近地面
+    shadowModelMatrix.scale(1, 0.001, 1); // 壓扁陰影
+    const shadowMvpMatrix = new Matrix4(vpMatrix).multiply(shadowModelMatrix);
+
+    gl.uniform1i(program.u_IsShadow, 1); // 啟用陰影模式
+    gl.uniformMatrix4fv(program.u_MvpMatrix, false, shadowMvpMatrix.elements);
+    gl.uniformMatrix4fv(program.u_ModelMatrix, false, shadowModelMatrix.elements);
+    drawCubeAt(gl, program, [0, 0, 0], [0.2, 0.2, 0.2]); // 灰色陰影
+  });
+
+  // 繪製食物的陰影
+  const foodShadowModelMatrix = new Matrix4();
+  foodShadowModelMatrix.setTranslate(foodPosition[0], 0.01, foodPosition[2]); // 陰影貼近地面
+  foodShadowModelMatrix.scale(0.3, 0.001, 0.3); // 壓扁陰影
+  const foodShadowMvpMatrix = new Matrix4(vpMatrix).multiply(foodShadowModelMatrix);
+
+  gl.uniform1i(program.u_IsShadow, 1); // 啟用陰影模式
+  gl.uniformMatrix4fv(program.u_MvpMatrix, false, foodShadowMvpMatrix.elements);
+  gl.uniformMatrix4fv(program.u_ModelMatrix, false, foodShadowModelMatrix.elements);
+  drawCubeAt(gl, program, [0, 0, 0], [0.2, 0.2, 0.2]); // 灰色陰影
+
+  gl.uniform1i(program.u_IsShadow, 0); // 關閉陰影模式
+
   // 繪製時計算法線矩陣
   snake.body.forEach((segment, index) => {
     const modelMatrix = new Matrix4().setTranslate(...segment);
@@ -515,19 +542,6 @@ function drawScene(viewMatrix, aspect) {
   });
 
   // 食物的繪製也需要正確的法線矩陣
-  const foodModelMatrix = new Matrix4();
-  foodModelMatrix.setTranslate(...foodPosition);
-  foodModelMatrix.scale(0.3, 0.3, 0.3);
-
-  const foodNormalMatrix = new Matrix4();
-  foodNormalMatrix.setInverseOf(foodModelMatrix);
-  foodNormalMatrix.transpose();
-
-  const foodMvpMatrix = new Matrix4(vpMatrix).multiply(foodModelMatrix);
-  gl.uniformMatrix4fv(program.u_MvpMatrix, false, foodMvpMatrix.elements);
-  gl.uniformMatrix4fv(program.u_ModelMatrix, false, foodModelMatrix.elements);
-  gl.uniformMatrix4fv(program.u_NormalMatrix, false, foodNormalMatrix.elements);
-
   drawFood(gl, program, vpMatrix);
 
   // 繪製邊界線
@@ -601,30 +615,46 @@ function drawSkybox(viewMatrix, aspect) {
 }
 
 function drawFood(gl, program, vpMatrix) {
+  // 設置食物的模型矩陣
   const foodModelMatrix = new Matrix4();
   foodModelMatrix.setTranslate(...foodPosition);
-  foodModelMatrix.rotate(foodRotation, foodRotation, 1, 0);
+  foodModelMatrix.rotate(foodRotation, 0, 1, 0);  // 只繞 Y 軸旋轉
   foodModelMatrix.scale(0.3, 0.3, 0.3);
 
+  // 計算 MVP 矩陣
   const foodMvpMatrix = new Matrix4(vpMatrix).multiply(foodModelMatrix);
+  
+  // 計算法線矩陣（用於光照計算）
+  const normalMatrix = new Matrix4();
+  normalMatrix.setInverseOf(foodModelMatrix);
+  normalMatrix.transpose();
+
+  // 傳遞矩陣到著色器
   gl.uniformMatrix4fv(program.u_MvpMatrix, false, foodMvpMatrix.elements);
   gl.uniformMatrix4fv(program.u_ModelMatrix, false, foodModelMatrix.elements);
+  gl.uniformMatrix4fv(program.u_NormalMatrix, false, normalMatrix.elements);
 
-  // 設置紋理
   if (foodTexture) {
-    gl.uniform1i(program.u_UseTexture, 1);
+    // 啟用混合模式和紋理
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, foodTexture);
     gl.uniform1i(program.u_Sampler, 0);
-    gl.enableVertexAttribArray(program.a_TexCoord); // 確保啟用紋理坐標
+    gl.uniform1i(program.u_UseTexture, 1);
+    
+    const texCoordLocation = gl.getAttribLocation(program, 'a_TexCoord');
+    gl.enableVertexAttribArray(texCoordLocation);
   } else {
     gl.uniform1i(program.u_UseTexture, 0);
-    gl.disableVertexAttribArray(program.a_TexCoord); // 如果沒有紋理就禁用
   }
 
+  // 繪製食物
   drawCubeAt(gl, program, [0, 0, 0], [1.0, 1.0, 1.0]);
-  
+
   // 重置狀態
+  gl.disable(gl.BLEND);
   gl.uniform1i(program.u_UseTexture, 0);
   gl.disableVertexAttribArray(program.a_TexCoord);
 }
