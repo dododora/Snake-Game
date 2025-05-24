@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>3D Snake Game</title>
+        <style>
+            #scoreboard {
+                position: absolute;
+                top: 20px;
+                left: 20px;
+                color: white;
+                font-family: Arial, sans-serif;
+                background: rgba(0, 0, 0, 0.5);
+                padding: 10px;
+                border-radius: 5px;
+            }
+            #scoreboard h2 {
+                margin: 0;
+                color: #4CAF50;
+            }
+            #score, #highscore {
+                margin: 5px 0;
+            }
+        </style>
+    </head>
+
+    <body>
+        <canvas id="webgl" width="800" height="800">
+            Please use a browser that supports "canvas".
+        </canvas>
+        <div id="scoreboard">
+            <h2>Snake Game</h2>
+            <p id="score">Score: 0</p>
+            <p id="highscore">High Score: 0</p>
+        </div>
+        <script src="cuon-matrix.js"></script>
+        <script type="module">
+            import { main } from './main.js';
+            main();
+        </script>
+    </body>
+</html>
