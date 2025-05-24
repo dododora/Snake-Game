@@ -191,6 +191,32 @@ export function drawCubeAt(gl, program, position, color) {
   gl.vertexAttribPointer(program.a_TexCoord, 2, gl.FLOAT, false, 20, 12); // offset 改為 12，跳過 xyz 三個浮點數
   gl.enableVertexAttribArray(program.a_TexCoord);
 
+  // 設置頂點法線
+  const normalBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+  
+  // 為立方體的每個面設置法線
+  const normals = new Float32Array([
+    // 前面
+     0.0,  0.0,  1.0,  0.0,  0.0,  1.0,  0.0,  0.0,  1.0,  0.0,  0.0,  1.0,
+    // 後面
+     0.0,  0.0, -1.0,  0.0,  0.0, -1.0,  0.0,  0.0, -1.0,  0.0,  0.0, -1.0,
+    // 上面
+     0.0,  1.0,  0.0,  0.0,  1.0,  0.0,  0.0,  1.0,  0.0,  0.0,  1.0,  0.0,
+    // 底面
+     0.0, -1.0,  0.0,  0.0, -1.0,  0.0,  0.0, -1.0,  0.0,  0.0, -1.0,  0.0,
+    // 右面
+     1.0,  0.0,  0.0,  1.0,  0.0,  0.0,  1.0,  0.0,  0.0,  1.0,  0.0,  0.0,
+    // 左面
+    -1.0,  0.0,  0.0, -1.0,  0.0,  0.0, -1.0,  0.0,  0.0, -1.0,  0.0,  0.0,
+  ]);
+  
+  gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
+  
+  const a_Normal = gl.getAttribLocation(program, 'a_Normal');
+  gl.vertexAttribPointer(a_Normal, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(a_Normal);
+
   // 設置顏色
   gl.uniform3fv(program.u_Color, color);
 

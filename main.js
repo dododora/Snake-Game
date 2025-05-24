@@ -37,6 +37,9 @@ let skyboxProgram;
 let skyboxBuffer;
 let skyboxTexture;
 
+// 添加到全局變量
+let fov = 60; // Field of view in degrees
+
 function initTexture(gl, image) {
   const texture = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -97,6 +100,15 @@ export function main() {
 
   // Setup skybox
   setupSkybox();
+
+  // 添加縮放控制
+  const zoomSlider = document.getElementById('zoom');
+  const zoomValue = document.getElementById('zoomValue');
+  zoomSlider.oninput = function() {
+    fov = this.value;
+    zoomValue.textContent = fov + '°';
+    draw();
+  };
 }
 
 function setupShaders() {
@@ -144,6 +156,12 @@ function setupShaders() {
   program.u_Sampler = gl.getUniformLocation(program, 'u_Sampler');
   program.u_UseTexture = gl.getUniformLocation(program, 'u_UseTexture');
   program.a_TexCoord = gl.getAttribLocation(program, 'a_TexCoord');
+
+  // Add new uniforms for lighting
+  program.u_LightColor = gl.getUniformLocation(program, 'u_LightColor');
+  program.u_LightParams = gl.getUniformLocation(program, 'u_LightParams');
+  program.u_AmbientLight = gl.getUniformLocation(program, 'u_AmbientLight');
+  program.u_Shininess = gl.getUniformLocation(program, 'u_Shininess');
 
   // Set up viewport and clear color
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
@@ -421,9 +439,16 @@ function drawScene(viewMatrix, aspect) {
   // 切換回主 shader program
   gl.useProgram(program);
 
+  // Calculate camera position based on view matrix
+  const cameraPos = {
+    x: -viewMatrix.elements[12],
+    y: -viewMatrix.elements[13],
+    z: -viewMatrix.elements[14]
+  };
+
   // 修改透視投影參數
   const projectionMatrix = new Matrix4().setPerspective(
-    60,     // 加大視野角度
+    fov,    // 使用動態 fov 值
     aspect,
     0.1,    // 近平面
     100     // 遠平面
@@ -431,22 +456,50 @@ function drawScene(viewMatrix, aspect) {
   
   const vpMatrix = projectionMatrix.multiply(viewMatrix);
 
-  // 在繪製之前設置光照位置
-  gl.uniform3f(program.u_LightPosition, 5.0, 10.0, 5.0);
+  // 設置光照參數
+  const lightPosition = [0, 15, 20];          // 提高光源位置
+  const lightColor = [1.2, 1.2, 1.2];        // 增加光照強度
+  const lightParams = [1.0, 0.009, 0.001];   // 降低衰減係數使光照範圍更大
+  const ambientLight = [0.4, 0.4, 0.4];      // 增加環境光強度
+  const shininess = 64.0;                    // 調整反光銳利度
 
-  // 畫地板
-  // const groundModelMatrix = new Matrix4();
-  // const groundMvpMatrix = new Matrix4(vpMatrix).multiply(groundModelMatrix);
-  // gl.uniformMatrix4fv(program.u_MvpMatrix, false, groundMvpMatrix.elements);
-  // gl.uniformMatrix4fv(program.u_ModelMatrix, false, groundModelMatrix.elements);
-  // drawGround(gl, program, [0.3, 0.3, 0.3]);
+  // 計算相機位置（改用當前視角）
+  const viewerPos = isFirstPerson
+    ? snake.body[0]  // 第一人稱時使用蛇頭位置
+    : [
+        cameraPos.x,
+        cameraPos.y,
+        cameraPos.z
+      ];
+  
+  // 傳遞光照參數
+  gl.uniform3fv(program.u_LightPosition, new Float32Array(lightPosition));
+  gl.uniform3fv(program.u_LightColor, new Float32Array(lightColor));
+  gl.uniform3fv(program.u_LightParams, new Float32Array(lightParams));
+  gl.uniform3fv(program.u_AmbientLight, new Float32Array(ambientLight));
+  gl.uniform1f(program.u_Shininess, shininess);
+  gl.uniform3fv(program.u_ViewPosition, new Float32Array(viewerPos));
 
-  // 畫蛇的每一節
+  // Draw a small cube at light position to visualize it
+  const lightModelMatrix = new Matrix4();
+  lightModelMatrix.setTranslate(...lightPosition);  // 更新可視化光源的位置
+  lightModelMatrix.scale(0.1, 0.1, 0.1);            // 縮小光源指示器
+  const lightMvpMatrix = new Matrix4(vpMatrix).multiply(lightModelMatrix);
+  gl.uniformMatrix4fv(program.u_MvpMatrix, false, lightMvpMatrix.elements);
+  gl.uniformMatrix4fv(program.u_ModelMatrix, false, lightModelMatrix.elements);
+  drawCubeAt(gl, program, [0, 0, 0], [1.0, 1.0, 0.0]);  // 黃色立方體表示光源
+
+  // 繪製時計算法線矩陣
   snake.body.forEach((segment, index) => {
     const modelMatrix = new Matrix4().setTranslate(...segment);
+    const normalMatrix = new Matrix4();
+    normalMatrix.setInverseOf(modelMatrix);
+    normalMatrix.transpose();
+
     const mvpMatrix = new Matrix4(vpMatrix).multiply(modelMatrix);
     gl.uniformMatrix4fv(program.u_MvpMatrix, false, mvpMatrix.elements);
     gl.uniformMatrix4fv(program.u_ModelMatrix, false, modelMatrix.elements);
+    gl.uniformMatrix4fv(program.u_NormalMatrix, false, normalMatrix.elements);
 
     const color = index === 0 
       ? [0.0, 0.8, 0.2]  // 蛇頭亮綠色
@@ -455,7 +508,20 @@ function drawScene(viewMatrix, aspect) {
     drawCubeAt(gl, program, segment, color);
   });
 
-  // 畫食物
+  // 食物的繪製也需要正確的法線矩陣
+  const foodModelMatrix = new Matrix4();
+  foodModelMatrix.setTranslate(...foodPosition);
+  foodModelMatrix.scale(0.3, 0.3, 0.3);
+
+  const foodNormalMatrix = new Matrix4();
+  foodNormalMatrix.setInverseOf(foodModelMatrix);
+  foodNormalMatrix.transpose();
+
+  const foodMvpMatrix = new Matrix4(vpMatrix).multiply(foodModelMatrix);
+  gl.uniformMatrix4fv(program.u_MvpMatrix, false, foodMvpMatrix.elements);
+  gl.uniformMatrix4fv(program.u_ModelMatrix, false, foodModelMatrix.elements);
+  gl.uniformMatrix4fv(program.u_NormalMatrix, false, foodNormalMatrix.elements);
+
   drawFood(gl, program, vpMatrix);
 }
 
