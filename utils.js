@@ -9,6 +9,54 @@ export function initializeGL(canvas) {
   }
 }
 
+function calculateTangentsBitangents(vertices, texCoords) {
+  const tangents = new Float32Array(vertices.length);
+  const bitangents = new Float32Array(vertices.length);
+
+  for (let i = 0; i < vertices.length; i += 9) { // 每3個頂點(一個三角形)
+    const v0 = [vertices[i], vertices[i+1], vertices[i+2]];
+    const v1 = [vertices[i+3], vertices[i+4], vertices[i+5]];
+    const v2 = [vertices[i+6], vertices[i+7], vertices[i+8]];
+
+    const uv0 = [texCoords[i/3*2], texCoords[i/3*2+1]];
+    const uv1 = [texCoords[(i/3+1)*2], texCoords[(i/3+1)*2+1]];
+    const uv2 = [texCoords[(i/3+2)*2], texCoords[(i/3+2)*2+1]];
+
+    const deltaPos1 = [v1[0]-v0[0], v1[1]-v0[1], v1[2]-v0[2]];
+    const deltaPos2 = [v2[0]-v0[0], v2[1]-v0[1], v2[2]-v0[2]];
+
+    const deltaUV1 = [uv1[0]-uv0[0], uv1[1]-uv0[1]];
+    const deltaUV2 = [uv2[0]-uv0[0], uv2[1]-uv0[1]];
+
+    const r = 1.0 / (deltaUV1[0] * deltaUV2[1] - deltaUV1[1] * deltaUV2[0]);
+
+    const tangent = [
+      (deltaPos1[0] * deltaUV2[1] - deltaPos2[0] * deltaUV1[1]) * r,
+      (deltaPos1[1] * deltaUV2[1] - deltaPos2[1] * deltaUV1[1]) * r,
+      (deltaPos1[2] * deltaUV2[1] - deltaPos2[2] * deltaUV1[1]) * r
+    ];
+
+    const bitangent = [
+      (deltaPos2[0] * deltaUV1[0] - deltaPos1[0] * deltaUV2[0]) * r,
+      (deltaPos2[1] * deltaUV1[0] - deltaPos1[1] * deltaUV2[0]) * r,
+      (deltaPos2[2] * deltaUV1[0] - deltaPos1[2] * deltaUV2[0]) * r
+    ];
+
+    // 為三角形的每個頂點賦值相同的切線和副切線
+    for (let j = 0; j < 3; j++) {
+      tangents[i+j*3] = tangent[0];
+      tangents[i+j*3+1] = tangent[1];
+      tangents[i+j*3+2] = tangent[2];
+
+      bitangents[i+j*3] = bitangent[0];
+      bitangents[i+j*3+1] = bitangent[1];
+      bitangents[i+j*3+2] = bitangent[2];
+    }
+  }
+
+  return { tangents, bitangents };
+}
+
 export function initializeCube(gl) {
   const vertices = new Float32Array([
     // Vertex coordinates and texture coordinates
@@ -69,6 +117,17 @@ export function initializeCube(gl) {
   const texCoords = new Float32Array(vertices.filter((_, index) => index % 5 >= 3));
   gl.bindBuffer(gl.ARRAY_BUFFER, cubeBuffer.texCoordBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
+
+  // Calculate tangents and bitangents
+  const { tangents, bitangents } = calculateTangentsBitangents(vertices, texCoords);
+  
+  cubeBuffer.tangentBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, cubeBuffer.tangentBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, tangents, gl.STATIC_DRAW);
+
+  cubeBuffer.bitangentBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, cubeBuffer.bitangentBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, bitangents, gl.STATIC_DRAW);
 }
 
 export function initializeGroundBuffer(gl) {
@@ -220,6 +279,22 @@ export function drawCubeAt(gl, program, position, color) {
   const a_Normal = gl.getAttribLocation(program, 'a_Normal');
   gl.vertexAttribPointer(a_Normal, 3, gl.FLOAT, false, 0, 0);
   gl.enableVertexAttribArray(a_Normal);
+
+  // Set up tangent attribute
+  const a_Tangent = gl.getAttribLocation(program, 'a_Tangent');
+  if (a_Tangent >= 0) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, cubeBuffer.tangentBuffer);
+    gl.vertexAttribPointer(a_Tangent, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(a_Tangent);
+  }
+
+  // Set up bitangent attribute
+  const a_Bitangent = gl.getAttribLocation(program, 'a_Bitangent');
+  if (a_Bitangent >= 0) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, cubeBuffer.bitangentBuffer);
+    gl.vertexAttribPointer(a_Bitangent, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(a_Bitangent);
+  }
 
   // 設置顏色
   gl.uniform3fv(program.u_Color, color);

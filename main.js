@@ -44,6 +44,9 @@ let fov = 60; // Field of view in degrees
 
 let borderProgram; // 添加全局變量
 
+// Add new global variables
+let snakeNormalMap;
+
 function initTexture(gl, image) {
   const texture = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -98,6 +101,17 @@ export function main() {
     console.error('Error loading texture:', err);
   };
   image.src = './picture/object_texture.jpg'; // 確保這個路徑是正確的
+
+  // Load normal map texture
+  const normalMapImage = new Image();
+  normalMapImage.crossOrigin = "anonymous";
+  normalMapImage.onload = function() {
+    snakeNormalMap = initTexture(gl, normalMapImage);
+  };
+  normalMapImage.onerror = function(err) {
+    console.error('Error loading normal map:', err);
+  };
+  normalMapImage.src = './picture/NormalGL.jpg'; // Use the rust texture as normal map
 
   // 在圖片加載之前，先開始遊戲循環，但不渲染食物的紋理
   requestAnimationFrame(gameLoop);
@@ -167,6 +181,14 @@ function setupShaders() {
   program.u_LightParams = gl.getUniformLocation(program, 'u_LightParams');
   program.u_AmbientLight = gl.getUniformLocation(program, 'u_AmbientLight');
   program.u_Shininess = gl.getUniformLocation(program, 'u_Shininess');
+
+  // Add new uniforms for bump mapping
+  program.u_NormalMap = gl.getUniformLocation(program, 'u_NormalMap');
+  program.u_UseBumpMap = gl.getUniformLocation(program, 'u_UseBumpMap');
+
+  // Add new attributes for bump mapping
+  program.a_Tangent = gl.getAttribLocation(program, 'a_Tangent');
+  program.a_Bitangent = gl.getAttribLocation(program, 'a_Bitangent');
 
   // Set up viewport and clear color
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
@@ -526,6 +548,7 @@ function drawScene(viewMatrix, aspect) {
   // 繪製食物的陰影
   const foodShadowModelMatrix = new Matrix4();
   foodShadowModelMatrix.setTranslate(foodPosition[0], 0.01, foodPosition[2]); // 陰影貼近地面
+  foodShadowModelMatrix.rotate(foodRotation, 0, 1, 0); // Apply the same rotation as the food
   foodShadowModelMatrix.scale(0.3, 0.001, 0.3); // 壓扁陰影
   const foodShadowMvpMatrix = new Matrix4(vpMatrix).multiply(foodShadowModelMatrix);
 
@@ -548,12 +571,26 @@ function drawScene(viewMatrix, aspect) {
     gl.uniformMatrix4fv(program.u_ModelMatrix, false, modelMatrix.elements);
     gl.uniformMatrix4fv(program.u_NormalMatrix, false, normalMatrix.elements);
 
+    // Enable bump mapping for snake
+    if (snakeNormalMap) {
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, snakeNormalMap);
+        gl.uniform1i(program.u_NormalMap, 1);
+        gl.uniform1i(program.u_UseBumpMap, 1);
+    } else {
+        gl.uniform1i(program.u_UseBumpMap, 0);
+    }
+
     const color = index === 0 
       ? [0.0, 0.8, 0.2]  // 蛇頭亮綠色
       : [0.0, 0.6, 0.0]; // 蛇身暗綠色
     
+    gl.uniform3fv(program.u_Color, new Float32Array(color));
     drawCubeAt(gl, program, segment, color);
   });
+
+  // Reset bump mapping state
+  gl.uniform1i(program.u_UseBumpMap, 0);
 
   // 食物的繪製也需要正確的法線矩陣
   drawFood(gl, program, vpMatrix);
@@ -632,7 +669,7 @@ function drawFood(gl, program, vpMatrix) {
   // 設置食物的模型矩陣
   const foodModelMatrix = new Matrix4();
   foodModelMatrix.setTranslate(...foodPosition);
-  foodModelMatrix.rotate(foodRotation, 0, 1, 0);  // 只繞 Y 軸旋轉
+  foodModelMatrix.rotate(foodRotation,0 ,  1, 0);  // 只繞 Y 軸旋轉
   foodModelMatrix.scale(0.3, 0.3, 0.3);
 
   // 計算 MVP 矩陣
