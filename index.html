@@ -4,15 +4,40 @@
         <meta charset="utf-8" />
         <title>3D Snake Game</title>
         <style>
-            #scoreboard {
-                position: absolute;
-                top: 20px;
-                left: 20px;
-                color: white;
+            body {
+                margin: 0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                background-color: #FFF;
                 font-family: Arial, sans-serif;
+            }
+            #container {
+                position: relative;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            canvas {
+                display: block;
+                border: 2px solid #4CAF50;
+            }
+            #scoreboard, #instructions {
+                position: absolute;
                 background: rgba(0, 0, 0, 0.5);
+                color: white;
                 padding: 10px;
                 border-radius: 5px;
+                max-width: 300px;
+            }
+            #scoreboard {
+                top: 10px;
+                left: 10px;
+            }
+            #instructions {
+                bottom: 10px;
+                right: 10px;
             }
             #scoreboard h2 {
                 margin: 0;
@@ -23,29 +48,40 @@
             }
             #controls {
                 position: absolute;
-                bottom: 20px;
-                left: 20px;
+                bottom: 10px;
+                left: 10px;
                 background: rgba(0, 0, 0, 0.5);
                 padding: 10px;
                 border-radius: 5px;
-                color: white;
             }
         </style>
     </head>
 
     <body>
-        <canvas id="webgl" width="800" height="800">
-            Please use a browser that supports "canvas".
-        </canvas>
-        <div id="scoreboard">
-            <h2>Snake Game</h2>
-            <p id="score">Score: 0</p>
-            <p id="highscore">High Score: 0</p>
-        </div>
-        <div id="controls">
-            <label for="zoom">Zoom:</label>
-            <input type="range" id="zoom" min="30" max="120" value="60" step="1">
-            <span id="zoomValue">60°</span>
+        <div id="container">
+            <canvas id="webgl" width="800" height="800">
+                Please use a browser that supports "canvas".
+            </canvas>
+            <div id="scoreboard">
+                <h2>Snake Game</h2>
+                <p id="score">Score: 0</p>
+                <p id="highscore">High Score: 0</p>
+            </div>
+            <div id="controls">
+                <label for="zoom">Zoom:</label>
+                <input type="range" id="zoom" min="30" max="120" value="60" step="1">
+                <span id="zoomValue">60°</span>
+            </div>
+            <div id="instructions">
+                <h3>Instructions</h3>
+                <ul>
+                    <li>Use <b>W</b>, <b>A</b>, <b>S</b>, <b>D</b> to control the snake.</li>
+                    <li>Press <b>C</b> to toggle between first-person and third-person views.</li>
+                    <li>Use the mouse to adjust the camera angle.</li>
+                    <li>Eat the food to grow and increase your score.</li>
+                    <li>Avoid colliding with yourself or the walls.</li>
+                </ul>
+            </div>
         </div>
         <script src="cuon-matrix.js"></script>
         <script type="module">
