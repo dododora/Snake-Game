@@ -83,3 +83,34 @@ export const skyboxFragmentShader = `
     gl_FragColor = vec4(texColor, 1.0);
   }
 `;
+
+export const borderVertexShader = `
+  attribute vec4 a_Position;
+  attribute vec3 a_Normal;
+  uniform mat4 u_MvpMatrix;
+  uniform mat4 u_ModelMatrix;
+  uniform mat4 u_NormalMatrix;
+  varying vec3 v_Normal;
+  varying vec3 v_PositionInWorld;
+
+  void main() {
+    gl_Position = u_MvpMatrix * a_Position;
+    v_PositionInWorld = (u_ModelMatrix * a_Position).xyz;
+    v_Normal = normalize(vec3(u_NormalMatrix * vec4(a_Normal, 0.0)));
+  }
+`;
+
+export const borderFragmentShader = `
+  precision mediump float;
+  uniform vec3 u_ViewPosition;
+  uniform samplerCube u_envCubeMap;
+  varying vec3 v_Normal;
+  varying vec3 v_PositionInWorld;
+
+  void main() {
+    vec3 viewDir = normalize(u_ViewPosition - v_PositionInWorld);
+    vec3 reflectDir = reflect(-viewDir, normalize(v_Normal));
+    vec3 reflectColor = textureCube(u_envCubeMap, reflectDir).rgb;
+    gl_FragColor = vec4(reflectColor, 1.0);
+  }
+`;

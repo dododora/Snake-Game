@@ -12,7 +12,9 @@ import {
   vertexShaderSource, 
   fragmentShaderSource, 
   skyboxVertexShader, 
-  skyboxFragmentShader 
+  skyboxFragmentShader,
+  borderVertexShader,    // 添加邊界反射著色器
+  borderFragmentShader   // 添加邊界反射著色器
 } from './shaders.js';
 
 let gl, program, snake, camera, foodPosition;
@@ -39,6 +41,8 @@ let skyboxTexture;
 
 // 添加到全局變量
 let fov = 60; // Field of view in degrees
+
+let borderProgram; // 添加全局變量
 
 function initTexture(gl, image) {
   const texture = gl.createTexture();
@@ -168,6 +172,16 @@ function setupShaders() {
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
   gl.enable(gl.DEPTH_TEST); // Enable depth testing
+
+  // 編譯並設置邊界反射著色器
+  borderProgram = compileShader(gl, borderVertexShader, borderFragmentShader);
+  borderProgram.a_Position = gl.getAttribLocation(borderProgram, 'a_Position');
+  borderProgram.a_Normal = gl.getAttribLocation(borderProgram, 'a_Normal');
+  borderProgram.u_MvpMatrix = gl.getUniformLocation(borderProgram, 'u_MvpMatrix');
+  borderProgram.u_ModelMatrix = gl.getUniformLocation(borderProgram, 'u_ModelMatrix');
+  borderProgram.u_NormalMatrix = gl.getUniformLocation(borderProgram, 'u_NormalMatrix');
+  borderProgram.u_ViewPosition = gl.getUniformLocation(borderProgram, 'u_ViewPosition');
+  borderProgram.u_envCubeMap = gl.getUniformLocation(borderProgram, 'u_envCubeMap');
 }
 
 // Add this function before setupSkybox()
@@ -660,18 +674,33 @@ function drawFood(gl, program, vpMatrix) {
 }
 
 function drawBorder(modelMatrix, vpMatrix) {
+  gl.useProgram(borderProgram);
+
   const normalMatrix = new Matrix4();
   normalMatrix.setInverseOf(modelMatrix);
   normalMatrix.transpose();
 
   const mvpMatrix = new Matrix4(vpMatrix).multiply(modelMatrix);
-  
-  gl.uniformMatrix4fv(program.u_MvpMatrix, false, mvpMatrix.elements);
-  gl.uniformMatrix4fv(program.u_ModelMatrix, false, modelMatrix.elements);
-  gl.uniformMatrix4fv(program.u_NormalMatrix, false, normalMatrix.elements);
-  
-  // 使用白色繪製邊界
-  drawCubeAt(gl, program, [0, 0, 0], [0.8, 0.8, 0.8]);
+
+  // 從 viewMatrix 中提取相機位置
+  const cameraPosition = [
+    -vpMatrix.elements[12],
+    -vpMatrix.elements[13],
+    -vpMatrix.elements[14]
+  ];
+
+  gl.uniformMatrix4fv(borderProgram.u_MvpMatrix, false, mvpMatrix.elements);
+  gl.uniformMatrix4fv(borderProgram.u_ModelMatrix, false, modelMatrix.elements);
+  gl.uniformMatrix4fv(borderProgram.u_NormalMatrix, false, normalMatrix.elements);
+  gl.uniform3fv(borderProgram.u_ViewPosition, new Float32Array(cameraPosition));
+
+  // 綁定環境貼圖
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_CUBE_MAP, skyboxTexture);
+  gl.uniform1i(borderProgram.u_envCubeMap, 0);
+
+  // 繪製邊界
+  drawCubeAt(gl, borderProgram, [0, 0, 0], [1.0, 1.0, 1.0]);
 }
 
 main();
