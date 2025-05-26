@@ -281,25 +281,25 @@ function setupEventListeners() {
   document.addEventListener('keydown', event => {
     const now = Date.now();
     if (now - lastKeyPressTime < 300) return;
-    
+
     if (isFirstPerson) {
       // 第一人稱控制邏輯
       switch (event.key.toLowerCase()) {
         case 'w': // 前進 - 使用當前方向
           snake.setDirection([snake.direction[0], 0, snake.direction[2]]);
           break;
-        case 's': // 後退 - 使用當前方向的反方向
-          snake.setDirection([-snake.direction[0], 0, -snake.direction[2]]);
-          break;
         case 'a': // 左轉
-          snake.direction = [snake.direction[2], 0, -snake.direction[0]];
+          snake.setDirection([snake.direction[2], 0, -snake.direction[0]]);
           break;
         case 'd': // 右轉
-          snake.direction = [-snake.direction[2], 0, snake.direction[0]];
+          snake.setDirection([-snake.direction[2], 0, snake.direction[0]]);
           break;
-        case 'c':
+        case 'c': // 切換視角
           isFirstPerson = !isFirstPerson;
           console.log('Changed to:', isFirstPerson ? 'First Person' : 'Third Person');
+          break;
+        case 's': // 禁止向後移動
+          console.log('Cannot move backward in first-person mode!');
           break;
       }
     } else {
@@ -315,7 +315,7 @@ function setupEventListeners() {
           break;
       }
     }
-    
+
     lastKeyPressTime = now;
   });
 }

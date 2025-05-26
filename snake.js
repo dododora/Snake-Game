@@ -8,6 +8,7 @@ export class Snake {
       [initialPosition[0] - 3, 0.5, initialPosition[2]]
     ];
     this.direction = [1, 0, 0];
+    this.lastDirection = [1, 0, 0]; // 記錄上一次的方向
     this.growPending = 0;
     this.speed = 0.2;
     this.lastMoveTime = 0;
@@ -49,11 +50,23 @@ export class Snake {
     );
     
     if (length > 0) {
-      this.direction = [
+      const normalizedDirection = [
         newDirection[0] / length,
         0,
         newDirection[2] / length
       ];
+
+      // 檢查是否為反方向
+      if (
+        normalizedDirection[0] === -this.lastDirection[0] &&
+        normalizedDirection[2] === -this.lastDirection[2]
+      ) {
+        console.log('Cannot move in the opposite direction!');
+        return;
+      }
+
+      this.direction = normalizedDirection;
+      this.lastDirection = this.direction; // 更新上一次的方向
       console.log('New direction:', this.direction);
     }
   }
