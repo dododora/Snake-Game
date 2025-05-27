@@ -9,48 +9,54 @@ export function initializeGL(canvas) {
   }
 }
 
-function calculateTangentsBitangents(vertices, texCoords) {
+function calculateTangentsBitangents(vertices, indices, texCoords) {
   const tangents = new Float32Array(vertices.length);
   const bitangents = new Float32Array(vertices.length);
 
-  for (let i = 0; i < vertices.length; i += 9) { // 每3個頂點(一個三角形)
-    const v0 = [vertices[i], vertices[i+1], vertices[i+2]];
-    const v1 = [vertices[i+3], vertices[i+4], vertices[i+5]];
-    const v2 = [vertices[i+6], vertices[i+7], vertices[i+8]];
+  // 為每個三角形計算切線和副切線
+  for (let i = 0; i < indices.length; i += 3) {
+    const i0 = indices[i];
+    const i1 = indices[i + 1];
+    const i2 = indices[i + 2];
 
-    const uv0 = [texCoords[i/3*2], texCoords[i/3*2+1]];
-    const uv1 = [texCoords[(i/3+1)*2], texCoords[(i/3+1)*2+1]];
-    const uv2 = [texCoords[(i/3+2)*2], texCoords[(i/3+2)*2+1]];
+    // 獲取三角形的三個頂點
+    const v0 = [vertices[i0 * 5], vertices[i0 * 5 + 1], vertices[i0 * 5 + 2]];
+    const v1 = [vertices[i1 * 5], vertices[i1 * 5 + 1], vertices[i1 * 5 + 2]];
+    const v2 = [vertices[i2 * 5], vertices[i2 * 5 + 1], vertices[i2 * 5 + 2]];
 
-    const deltaPos1 = [v1[0]-v0[0], v1[1]-v0[1], v1[2]-v0[2]];
-    const deltaPos2 = [v2[0]-v0[0], v2[1]-v0[1], v2[2]-v0[2]];
+    // 獲取對應的 UV 坐標
+    const uv0 = [vertices[i0 * 5 + 3], vertices[i0 * 5 + 4]];
+    const uv1 = [vertices[i1 * 5 + 3], vertices[i1 * 5 + 4]];
+    const uv2 = [vertices[i2 * 5 + 3], vertices[i2 * 5 + 4]];
 
-    const deltaUV1 = [uv1[0]-uv0[0], uv1[1]-uv0[1]];
-    const deltaUV2 = [uv2[0]-uv0[0], uv2[1]-uv0[1]];
+    // 計算邊和 UV 差異
+    const deltaPos1 = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
+    const deltaPos2 = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
+    const deltaUV1 = [uv1[0] - uv0[0], uv1[1] - uv0[1]];
+    const deltaUV2 = [uv2[0] - uv0[0], uv2[1] - uv0[1]];
 
+    // 計算切線和副切線
     const r = 1.0 / (deltaUV1[0] * deltaUV2[1] - deltaUV1[1] * deltaUV2[0]);
-
     const tangent = [
       (deltaPos1[0] * deltaUV2[1] - deltaPos2[0] * deltaUV1[1]) * r,
       (deltaPos1[1] * deltaUV2[1] - deltaPos2[1] * deltaUV1[1]) * r,
-      (deltaPos1[2] * deltaUV2[1] - deltaPos2[2] * deltaUV1[1]) * r
+      (deltaPos1[2] * deltaUV2[1] - deltaPos2[2] * deltaUV1[1]) * r,
     ];
-
     const bitangent = [
       (deltaPos2[0] * deltaUV1[0] - deltaPos1[0] * deltaUV2[0]) * r,
       (deltaPos2[1] * deltaUV1[0] - deltaPos1[1] * deltaUV2[0]) * r,
-      (deltaPos2[2] * deltaUV1[0] - deltaPos1[2] * deltaUV2[0]) * r
+      (deltaPos2[2] * deltaUV1[0] - deltaPos1[2] * deltaUV2[0]) * r,
     ];
 
-    // 為三角形的每個頂點賦值相同的切線和副切線
-    for (let j = 0; j < 3; j++) {
-      tangents[i+j*3] = tangent[0];
-      tangents[i+j*3+1] = tangent[1];
-      tangents[i+j*3+2] = tangent[2];
+    // 將計算出的切線和副切線應用到三角形的三個頂點
+    for (const idx of [i0, i1, i2]) {
+      tangents[idx * 3] = tangent[0];
+      tangents[idx * 3 + 1] = tangent[1];
+      tangents[idx * 3 + 2] = tangent[2];
 
-      bitangents[i+j*3] = bitangent[0];
-      bitangents[i+j*3+1] = bitangent[1];
-      bitangents[i+j*3+2] = bitangent[2];
+      bitangents[idx * 3] = bitangent[0];
+      bitangents[idx * 3 + 1] = bitangent[1];
+      bitangents[idx * 3 + 2] = bitangent[2];
     }
   }
 
@@ -58,47 +64,47 @@ function calculateTangentsBitangents(vertices, texCoords) {
 }
 
 export function initializeCube(gl) {
+  // 修改立方體的頂點數據，為每個頂點添加唯一的 UV 坐標
   const vertices = new Float32Array([
-    // Vertex coordinates and texture coordinates
-    // Front face
-    -0.5, -0.5,  0.5,   0.0, 0.0,
-     0.5, -0.5,  0.5,   1.0, 0.0,
-     0.5,  0.5,  0.5,   1.0, 1.0,
-    -0.5,  0.5,  0.5,   0.0, 1.0,
-    // Back face
-    -0.5, -0.5, -0.5,   1.0, 0.0,
-    -0.5,  0.5, -0.5,   1.0, 1.0,
-     0.5,  0.5, -0.5,   0.0, 1.0,
-     0.5, -0.5, -0.5,   0.0, 0.0,
-    // Top face
-    -0.5,  0.5, -0.5,   0.0, 1.0,
-    -0.5,  0.5,  0.5,   0.0, 0.0,
-     0.5,  0.5,  0.5,   1.0, 0.0,
-     0.5,  0.5, -0.5,   1.0, 1.0,
-    // Bottom face
-    -0.5, -0.5, -0.5,   0.0, 0.0,
-     0.5, -0.5, -0.5,   1.0, 0.0,
-     0.5, -0.5,  0.5,   1.0, 1.0,
-    -0.5, -0.5,  0.5,   0.0, 1.0,
-    // Right face
-     0.5, -0.5, -0.5,   0.0, 0.0,
-     0.5,  0.5, -0.5,   0.0, 1.0,
-     0.5,  0.5,  0.5,   1.0, 1.0,
-     0.5, -0.5,  0.5,   1.0, 0.0,
-    // Left face
-    -0.5, -0.5, -0.5,   1.0, 0.0,
-    -0.5, -0.5,  0.5,   1.0, 1.0,
-    -0.5,  0.5,  0.5,   0.0, 1.0,
-    -0.5,  0.5, -0.5,   0.0, 0.0,
+    // 前面
+    -0.5, -0.5,  0.5,   0.0, 0.0,  // 0
+     0.5, -0.5,  0.5,   1.0, 0.0,  // 1
+     0.5,  0.5,  0.5,   1.0, 1.0,  // 2
+    -0.5,  0.5,  0.5,   0.0, 1.0,  // 3
+    // 後面
+    -0.5, -0.5, -0.5,   0.0, 0.0,  // 4
+     0.5, -0.5, -0.5,   1.0, 0.0,  // 5
+     0.5,  0.5, -0.5,   1.0, 1.0,  // 6
+    -0.5,  0.5, -0.5,   0.0, 1.0,  // 7
+    // 上面
+    -0.5,  0.5, -0.5,   0.0, 0.0,  // 8
+     0.5,  0.5, -0.5,   1.0, 0.0,  // 9
+     0.5,  0.5,  0.5,   1.0, 1.0,  // 10
+    -0.5,  0.5,  0.5,   0.0, 1.0,  // 11
+    // 底面
+    -0.5, -0.5, -0.5,   0.0, 0.0,  // 12
+     0.5, -0.5, -0.5,   1.0, 0.0,  // 13
+     0.5, -0.5,  0.5,   1.0, 1.0,  // 14
+    -0.5, -0.5,  0.5,   0.0, 1.0,  // 15
+    // 右面
+     0.5, -0.5, -0.5,   0.0, 0.0,  // 16
+     0.5,  0.5, -0.5,   1.0, 0.0,  // 17
+     0.5,  0.5,  0.5,   1.0, 1.0,  // 18
+     0.5, -0.5,  0.5,   0.0, 1.0,  // 19
+    // 左面
+    -0.5, -0.5, -0.5,   0.0, 0.0,  // 20
+    -0.5,  0.5, -0.5,   1.0, 0.0,  // 21
+    -0.5,  0.5,  0.5,   1.0, 1.0,  // 22
+    -0.5, -0.5,  0.5,   0.0, 1.0,  // 23
   ]);
 
   const indices = new Uint16Array([
-    0,  1,  2,  0,  2,  3,  // Front face
-    4,  5,  6,  4,  6,  7,  // Back face
-    8,  9,  10, 8,  10, 11, // Top face
-    12, 13, 14, 12, 14, 15, // Bottom face
-    16, 17, 18, 16, 18, 19, // Right face
-    20, 21, 22, 20, 22, 23, // Left face
+    0,  1,  2,    0,  2,  3,  // 前面
+    4,  5,  6,    4,  6,  7,  // 後面
+    8,  9,  10,   8,  10, 11, // 上面
+    12, 13, 14,   12, 14, 15, // 底面
+    16, 17, 18,   16, 18, 19, // 右面
+    20, 21, 22,   20, 22, 23  // 左面
   ]);
 
   cubeBuffer = {
@@ -119,7 +125,7 @@ export function initializeCube(gl) {
   gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
 
   // Calculate tangents and bitangents
-  const { tangents, bitangents } = calculateTangentsBitangents(vertices, texCoords);
+  const { tangents, bitangents } = calculateTangentsBitangents(vertices, indices, texCoords);
   
   cubeBuffer.tangentBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, cubeBuffer.tangentBuffer);

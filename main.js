@@ -45,7 +45,7 @@ let fov = 60; // Field of view in degrees
 let borderProgram; // 添加全局變量
 
 // Add new global variables
-let snakeNormalMap;
+let snakeNormalMap; 
 
 function initTexture(gl, image) {
   const texture = gl.createTexture();
