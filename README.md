@@ -1,9 +1,9 @@
 # 🐍 3D Snake Game (WebGL)
 
 A classic Snake game reimagined in 3D space, implemented using pure WebGL.  
-This is the final project for the **Computer Graphics (CSU0021)** course at **National Taiwan Normal University (NTNU)**.
+This is the final project for the **Computer Graphics** course at **National Taiwan Normal University (NTNU)**.
 
-
+URL: [https://snakegamewebgl.netlify.app](https://snakegamewebgl.netlify.app)
 ---
 
 ## 🎮 Features
