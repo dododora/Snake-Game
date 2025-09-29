@@ -61,6 +61,6 @@ MIT License. Textures and cube maps used are sourced from free CC0 libraries suc
 
 ## 👨‍💻 Author
 
-**[Your Name]**  
-CSU0021 – Computer Graphics @ NTNU
+**Dora Chen**  
+Computer Graphics @ NTNU
 
